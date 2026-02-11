@@ -8,7 +8,6 @@ import {
   saveBoard,
 } from "./storage";
 import type { FormationKey } from "./formations";
-import type { Team } from "./types";
 
 const cardStyle: React.CSSProperties = {
   background: "rgba(255,255,255,0.06)",
