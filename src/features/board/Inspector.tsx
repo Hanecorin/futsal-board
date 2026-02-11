@@ -1,6 +1,12 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { useBoardStore } from "./store";
-import { loadBoard, saveBoard } from "./storage";
+import {
+  listBoards,
+  loadBoard,
+  removeBoard,
+  renameBoard,
+  saveBoard,
+} from "./storage";
 import type { FormationKey } from "./formations";
 import type { Team } from "./types";
 
@@ -33,8 +39,6 @@ export default function Inspector() {
   const applyFormation = useBoardStore((s) => s.applyFormation);
   const setAll = useBoardStore((s) => s.setAll);
   const reset = useBoardStore((s) => s.reset);
-
-  // 너가 추가해둔 액션들
   const addPlayer = useBoardStore((s) => s.addPlayer);
   const removeSelected = useBoardStore((s) => s.removeSelected);
 
@@ -43,21 +47,47 @@ export default function Inspector() {
     [items, selectedId],
   );
 
-  const [formationTeam, setFormationTeam] = useState<Team>("RED");
+  const [savedList, setSavedList] = useState(() => listBoards());
+  const [activeSaveId, setActiveSaveId] = useState<string | null>(null);
+  const [boardTab, setBoardTab] = useState<"board" | "saved">("board");
+
+  const refreshList = () => setSavedList(listBoards());
 
   const onSave = () => {
-    saveBoard({ items, selectedId });
+    const name = prompt("저장 이름을 입력하세요");
+    if (!name) return;
+    saveBoard(name, { items, selectedId });
+    refreshList();
     alert("저장되었습니다");
   };
 
-  const onLoad = () => {
-    const s = loadBoard();
+  const onOverwrite = (id: string, currentName: string) => {
+    removeBoard(id);
+    saveBoard(currentName, { items, selectedId });
+    refreshList();
+    alert("저장되었습니다");
+  };
+
+  const onLoad = (id: string) => {
+    const s = loadBoard(id);
     if (s) setAll(s);
+    setActiveSaveId(id);
+  };
+
+  const onRemove = (id: string) => {
+    removeBoard(id);
+    refreshList();
+    if (activeSaveId === id) setActiveSaveId(null);
+  };
+
+  const onRename = (id: string, currentName: string) => {
+    const name = prompt("새 이름을 입력하세요", currentName);
+    if (!name || name === currentName) return;
+    renameBoard(id, name);
+    refreshList();
   };
 
   const onFormation = (key: FormationKey) => {
-    // 지금은 formation이 1팀 기준이라, 일단 그대로 적용
-    // (추후: formationTeam에 맞춰 팀 적용하도록 확장 가능)
     applyFormation(key);
     select(undefined);
   };
@@ -77,27 +107,148 @@ export default function Inspector() {
 
       <div style={{ height: 12 }} />
 
-      {/* ① 보드 작업 */}
+      {/* 보드 / 저장목록 탭 */}
       <div style={cardStyle}>
-        <div style={titleStyle}>보드</div>
-
-        <div style={rowStyle}>
-          <button onClick={() => onFormation("2-1-2")}>2-1-2</button>
-          <button onClick={() => onFormation("2-0-3")}>2-0-3</button>
+        <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+          <button
+            onClick={() => setBoardTab("board")}
+            style={{
+              padding: "6px 10px",
+              fontSize: 12,
+              background:
+                boardTab === "board"
+                  ? "rgba(255,255,255,0.12)"
+                  : "rgba(0,0,0,0.25)",
+              border:
+                boardTab === "board"
+                  ? "1px solid rgba(255,255,255,0.25)"
+                  : "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            보드
+          </button>
+          <button
+            onClick={() => setBoardTab("saved")}
+            style={{
+              padding: "6px 10px",
+              fontSize: 12,
+              background:
+                boardTab === "saved"
+                  ? "rgba(255,255,255,0.12)"
+                  : "rgba(0,0,0,0.25)",
+              border:
+                boardTab === "saved"
+                  ? "1px solid rgba(255,255,255,0.25)"
+                  : "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            저장목록
+          </button>
         </div>
 
-        <div style={{ height: 10 }} />
+        {boardTab === "board" ? (
+          <>
+            <div style={titleStyle}>보드</div>
 
-        <div style={rowStyle}>
-          <button onClick={onSave}>저장</button>
-          <button onClick={onLoad}>불러오기</button>
-          <button onClick={reset}>리셋</button>
-        </div>
+            <div style={rowStyle}>
+              <button onClick={() => onFormation("2-1-2")}>2-1-2</button>
+              <button onClick={() => onFormation("2-0-3")}>2-0-3</button>
+            </div>
+
+            <div style={{ height: 10 }} />
+
+            <div style={rowStyle}>
+              <button
+                onClick={() => {
+                  if (!activeSaveId) {
+                    onSave();
+                    return;
+                  }
+                  const choice = confirm(
+                    "현재 불러온 저장본을 덮어쓸까요?\n취소를 누르면 새로 저장합니다.",
+                  );
+                  if (choice) {
+                    const current = savedList.find(
+                      (s) => s.id === activeSaveId,
+                    );
+                    if (current) onOverwrite(current.id, current.name);
+                  } else {
+                    onSave();
+                  }
+                }}
+              >
+                저장
+              </button>
+              <button onClick={reset}>리셋</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={titleStyle}>저장목록</div>
+
+            <div style={{ display: "grid", gap: 8 }}>
+              {savedList.length === 0 ? (
+                <div style={{ fontSize: 12, opacity: 0.7 }}>
+                  저장된 보드가 없습니다.
+                </div>
+              ) : (
+                savedList.map((s) => (
+                  <div
+                    key={s.id}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr",
+                      gap: 6,
+                      padding: "10px 10px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      background: "rgba(0,0,0,0.25)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        opacity: 0.95,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                      title={s.name}
+                    >
+                      {s.name}
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        onClick={() => onLoad(s.id)}
+                        style={{ padding: "2px 6px", fontSize: 11 }}
+                      >
+                        불러오기
+                      </button>
+                      <button
+                        onClick={() => onRename(s.id, s.name)}
+                        style={{ padding: "2px 6px", fontSize: 11 }}
+                      >
+                        이름변경
+                      </button>
+                      <button
+                        onClick={() => onRemove(s.id)}
+                        style={{ padding: "2px 6px", fontSize: 11 }}
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       <div style={{ height: 12 }} />
 
-      {/* ② 선택 편집 */}
+      {/* 선택된 오브젝트 */}
       <div style={cardStyle}>
         <div style={titleStyle}>선택된 오브젝트</div>
 
@@ -141,7 +292,7 @@ export default function Inspector() {
         ) : selected?.kind === "ball" ? (
           <>
             <div style={{ opacity: 0.75, fontSize: 12, marginBottom: 8 }}>
-              공이 선택되었습니다.
+              공이 선택되었습니다
             </div>
             <button onClick={() => select(undefined)}>선택 해제</button>
           </>
@@ -154,7 +305,7 @@ export default function Inspector() {
 
       <div style={{ height: 12 }} />
 
-      {/* ③ 추가/관리 */}
+      {/* 선수 추가 */}
       <div style={cardStyle}>
         <div style={titleStyle}>선수 추가</div>
 
