@@ -19,7 +19,7 @@ function GoalWithNet(props: {
   // 그물 간격
   const step = Math.max(4, Math.floor(Math.min(w, h) / 6));
 
-  const lines: JSX.Element[] = [];
+  const lines = [];
 
   // 세로줄 (그물)
   for (let ix = frameX + step; ix < frameX + w; ix += step) {
