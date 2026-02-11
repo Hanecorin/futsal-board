@@ -30,10 +30,73 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  width: 100%;
+  height: 100%;
+}
+
+html,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+.board-page {
+  width: 100%;
+  height: 100%;
+  background: #222;
+  display: flex;
+  overflow: hidden;
+}
+
+.board-canvas {
+  flex: 1;
+  min-width: 0;
+}
+
+.board-inspector {
+  width: 320px;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  overflow: auto;
+}
+
+.snapshot-btn {
+  position: absolute;
+  left: 24px;
+  bottom: 16px;
+  z-index: 11;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .board-page {
+    flex-direction: column;
+  }
+
+  .board-canvas {
+    height: 56vh;
+  }
+
+  .board-inspector {
+    width: 100%;
+    height: 44vh;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .snapshot-btn {
+    left: 12px;
+    bottom: 12px;
+    padding: 4px 8px;
+    font-size: 11px;
+  }
 }
 
 h1 {

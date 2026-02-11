@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { Layer, Stage, Circle, Text, Group, Rect } from "react-konva";
 import type Konva from "konva";
 import PitchBackground from "./PitchBackground";
@@ -38,14 +38,12 @@ export default function PitchCanvas() {
     return () => ro.disconnect();
   }, []);
 
-  // 오른쪽 패널 공간 확보
   const layout = useMemo(() => {
     const margin = 24;
 
     const maxW = size.w - margin * 2;
     const maxH = size.h - margin * 2;
 
-    // 풋살장 비율 (대략 2:1)
     const ratio = 2;
 
     let fieldW = maxW;
@@ -69,6 +67,18 @@ export default function PitchCanvas() {
     };
   }, [size]);
 
+  const scale = useMemo(() => {
+    if (!layout.fieldW || !layout.fieldH) return 1;
+    return Math.max(0.6, Math.min(1, layout.fieldW / 800));
+  }, [layout.fieldW, layout.fieldH]);
+
+  const playerRadius = 18 * scale;
+  const ballRadius = 14 * scale;
+  const nameW = 68 * scale;
+  const nameH = 20 * scale;
+  const nameGap = 4 * scale;
+  const nameFont = 13 * scale;
+
   const editingItem = editingId
     ? items.find((it) => it.id === editingId && it.kind === "player")
     : undefined;
@@ -76,14 +86,13 @@ export default function PitchCanvas() {
   const editingPos = useMemo(() => {
     if (!editingItem) return null;
     const px = toPx(editingItem.pos, layout.fieldW, layout.fieldH);
-    const radius = 18;
     return {
-      x: layout.fieldX + px.x - 34,
-      y: layout.fieldY + px.y + radius + 4,
-      w: 68,
-      h: 20,
+      x: layout.fieldX + px.x - nameW / 2,
+      y: layout.fieldY + px.y + playerRadius + nameGap,
+      w: nameW,
+      h: nameH,
     };
-  }, [editingItem, layout]);
+  }, [editingItem, layout, nameGap, nameH, nameW, playerRadius]);
 
   useEffect(() => {
     if (!editingId) return;
@@ -140,33 +149,18 @@ export default function PitchCanvas() {
             width: editingPos.w,
             height: editingPos.h,
             zIndex: 10,
-            fontSize: 13,
+            fontSize: nameFont,
             textAlign: "center",
             color: "#fff",
             background: "rgba(0,0,0,0.55)",
             border: "1px solid rgba(255,255,255,0.35)",
-            borderRadius: 6,
+            borderRadius: 6 * scale,
             outline: "none",
           }}
         />
       )}
 
-      <button
-        onClick={saveSnapshot}
-        style={{
-          position: "absolute",
-          left: 24,
-          bottom: 16,
-          zIndex: 11,
-          padding: "6px 10px",
-          fontSize: 12,
-          borderRadius: 8,
-          border: "1px solid rgba(255,255,255,0.2)",
-          background: "rgba(0,0,0,0.5)",
-          color: "#fff",
-          cursor: "pointer",
-        }}
-      >
+      <button onClick={saveSnapshot} className="snapshot-btn">
         스크린샷 저장
       </button>
 
@@ -176,7 +170,6 @@ export default function PitchCanvas() {
         height={layout.stageH}
         style={{ position: "absolute", inset: 0 }}
         onMouseDown={(e) => {
-          // 빈 바닥 클릭하면 선택 해제
           if (e.target === e.target.getStage()) select(undefined);
         }}
       >
@@ -188,7 +181,6 @@ export default function PitchCanvas() {
             height={layout.fieldH}
           />
 
-          {/* 필드 영역 밖 클릭도 Stage로 먹히는 경우 있어서, 필드 위 투명 Rect로 처리 */}
           <Rect
             x={layout.fieldX}
             y={layout.fieldY}
@@ -197,7 +189,6 @@ export default function PitchCanvas() {
             fillEnabled={false}
             listening
             onMouseDown={(e) => {
-              // 필드 빈 곳 클릭하면 선택 해제
               if (e.target === e.target.getStage()) return;
             }}
           />
@@ -209,7 +200,7 @@ export default function PitchCanvas() {
 
             const isSelected = it.id === selectedId;
             const isEditing = it.id === editingId;
-            const radius = it.kind === "player" ? 18 : 14;
+            const radius = it.kind === "player" ? playerRadius : ballRadius;
 
             return (
               <Group
@@ -237,7 +228,6 @@ export default function PitchCanvas() {
                   };
                 }}
               >
-                {/* 선택 표시 */}
                 {isSelected && (
                   <Circle
                     radius={radius + 6}
@@ -247,12 +237,10 @@ export default function PitchCanvas() {
                   />
                 )}
 
-                {/* 선수 */}
                 {it.kind === "player" && (
                   <Circle radius={radius} fill={it.color} />
                 )}
 
-                {/* 공: 이미지 우선, 없으면 fallback */}
                 {it.kind === "ball" &&
                   (ballImage ? (
                     <KonvaImage
@@ -266,15 +254,14 @@ export default function PitchCanvas() {
                     <Circle radius={radius} fill={it.color} />
                   ))}
 
-                {/* 이름 라벨: 선수만 */}
                 {it.kind === "player" && (
                   <>
                     <Rect
-                      x={-34}
-                      y={radius + 4}
-                      width={68}
-                      height={20}
-                      cornerRadius={6}
+                      x={-nameW / 2}
+                      y={radius + nameGap}
+                      width={nameW}
+                      height={nameH}
+                      cornerRadius={6 * scale}
                       fill="rgba(0,0,0,0.35)"
                       onClick={(e) => {
                         e.cancelBubble = true;
@@ -297,13 +284,13 @@ export default function PitchCanvas() {
                     />
                     <Text
                       text={it.name || "이름"}
-                      x={-34}
-                      y={radius + 6}
-                      width={68}
-                      height={20}
+                      x={-nameW / 2}
+                      y={radius + nameGap + 2 * scale}
+                      width={nameW}
+                      height={nameH}
                       align="center"
                       verticalAlign="middle"
-                      fontSize={13}
+                      fontSize={nameFont}
                       fill="white"
                       onClick={(e) => {
                         e.cancelBubble = true;
